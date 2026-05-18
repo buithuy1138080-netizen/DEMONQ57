@@ -1,4 +1,4 @@
-var API_URL = 'https://script.google.com/macros/s/AKfycbxW0Ps1qgwekFVO8Hm3y8apoAVaUusxf29zOhu5zUPNMMXOKcjt4FA0Mt_8XWmI-0wBEQ/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbylXhw03Ubi8mWkFcd7GyGhSftJpcaJQpff-lWaPk0fZar7Ip7CVfQfkVtiQPINFI3kmw/exec';
 
 var APP = {
 token   : null,
