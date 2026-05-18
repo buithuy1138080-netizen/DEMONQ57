@@ -503,10 +503,6 @@ var ov = el('loading-overlay');
 if (ov) ov.style.display = 'none';
 }
 // ── API base URL — trỏ đến Google Apps Script Web App ──────────
-function gs(fn, args, cb) {
-  var params = new URLSearchParams();
-  params.append('fn', fn);
-  params.append('args', JSON.stringify(args || []));
 
   fetch(API_URL, {
     method: 'POST',
