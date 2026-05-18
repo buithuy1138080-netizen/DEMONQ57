@@ -33,8 +33,8 @@ function doLogin() {
   if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Đang đăng nhập...';}
   _hideLoginError();
   // Dùng fetch API thay cho google.script.run
-  var API_URL = window.API_URL || 'https://script.google.com/macros/s/AKfycbwaSdBRhJ0klwe0JoQ3m-L31SBC7DrgOL6Lv3DccxT_WRu5iYDYyPtmQLYrdwtz-fkz/exec';
-  if (!window.API_URL) window.API_URL = 'https://script.google.com/macros/s/AKfycbyPNxs47XPnwvq2XVt1VTHzHbnauyBohaTTTA8fPSFk_oakk2LNOckyZxfMvVeYOOSpug/exec';
+  var API_URL = window.API_URL || 'https://script.google.com/macros/s/AKfycbylXhw03Ubi8mWkFcd7GyGhSftJpcaJQpff-lWaPk0fZar7Ip7CVfQfkVtiQPINFI3kmw/exec';
+  if (!window.API_URL) window.API_URL = 'https://script.google.com/macros/s/AKfycbylXhw03Ubi8mWkFcd7GyGhSftJpcaJQpff-lWaPk0fZar7Ip7CVfQfkVtiQPINFI3kmw/exec';
 var API_URL = window.API_URL; fetch(API_URL, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
