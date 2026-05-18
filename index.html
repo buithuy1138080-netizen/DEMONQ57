@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>BCĐ NQ57 - Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="style.css">
+<script>
+/* LOGIN - inline in HEAD, always available */
+var APP = window.APP || {token:null,user:null,perms:{}};
+window.APP = APP;
+
+function _showLoginError(m) {
+  var b=document.getElementById('login-error'),t=document.getElementById('login-error-txt');
+  if(!b)return; if(t)t.textContent=m; else b.textContent=m; b.style.display='block';
+}
+function _hideLoginError() {
+  var b=document.getElementById('login-error'); if(b)b.style.display='none';
+}
+function togglePwVisibility() {
+  var i=document.getElementById('login-password'),ic=document.getElementById('pw-eye-icon');
+  if(!i)return; i.type=i.type==='password'?'text':'password';
+  if(ic)ic.className=i.type==='password'?'fas fa-eye':'fas fa-eye-slash';
+}
+function doLogin() {
+  var e=document.getElementById('login-email'),p=document.getElementById('login-password');
+  var email=e?e.value.trim():'', pw=p?p.value.trim():'';
+  if(!email||!pw){_showLoginError('Vui lòng nhập email và mật khẩu');return;}
+  var btn=document.getElementById('login-submit');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Đang đăng nhập...';}
+  _hideLoginError();
+  // Dùng fetch API thay cho google.script.run
+  var API_URL = window.API_URL || 'https://script.google.com/macros/s/AKfycby6MGAUSzx68JljfT92mojZou9jQfbrhTL1Byh8F8ktFOG2_sCB5c71cXjKGLN1nKkr-Q/exec';
+  fetch(API_URL, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({fn:'authenticateUser', args:[email,pw]})
+  })
+  .then(function(res){ return res.json(); })
+  .then(function(r){
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i> Đăng nhập';}
+    if(r&&r.success){
+      window.APP=window.APP||{};
+      window.APP.token=r.sessionToken||(r.user&&r.user.email)||'';
+      window.APP.user=r.user;
+      try{localStorage.setItem('nq57_token',window.APP.token);}catch(ex){}
+      try{localStorage.removeItem('nq57_user');}catch(ex){}
+      var m=document.getElementById('login-modal');
+      if(m)m.classList.remove('active');
+      if(typeof loadData==='function')loadData();
+      else location.reload();
+    } else {
+      _showLoginError(r&&r.error?r.error:'Sai email hoặc mật khẩu');
+    }
+  })
+  .catch(function(err){
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i> Đăng nhập';}
+    _showLoginError('Lỗi: '+(err&&err.message?err.message:'Không kết nối được'));
+  });
+}
+</script>
+</head>
+<body>
+
+<!-- - MOBILE OVERLAY - -->
+<div id="mobile-overlay" onclick="closeSidebar()"></div>
+
+<!-- -
+     SIDEBAR
+- -->
+<aside id="sidebar">
+
+  <!-- Logo -->
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-icon">
+      <i class="fas fa-rocket" style="color:#fff;font-size:14px"></i>
+    </div>
+    <div>
+      <h1>BCĐ NQ57</h1>
+      <p>Quản lý Demo</p>
+    </div>
+  </div>
+
+  <!-- User info -->
+  <div style="padding:8px">
+    <div class="sidebar-user" id="user-info" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" id="user-avatar">?</div>
+        <div style="flex:1;min-width:0">
+          <p id="user-name" style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
+          <p id="user-role" style="font-size:11px;color:var(--text-secondary)"></p>
+        </div>
+      </div>
+      <button id="logout-btn"
+        style="width:100%;margin-top:8px;padding:5px 10px;background:#fef2f2;color:#dc2626;
+               border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;
+               display:flex;align-items:center;justify-content:center;gap:6px">
+        <i class="fas fa-sign-out-alt"></i>Đăng xuất
+      </button>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav id="main-nav" style="padding:4px 0">
+    <a class="nav-link active" data-section="overview">
+      <span class="nav-icon" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff"><i class="fas fa-home"></i></span>
+      Tổng quan
+    </a>
+    <a class="nav-link" data-section="vanban" id="nav-vanban">
+      <span class="nav-icon" style="background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff"><i class="fas fa-file-alt"></i></span>
+      Văn bản
+    </a>
+    <a class="nav-link" data-section="duan" id="nav-duan">
+      <span class="nav-icon"><i class="fas fa-folder-open"></i></span>
+      Dự án
+    </a>
+    <a class="nav-link" data-section="nhiemvu">
+      <span class="nav-icon"><i class="fas fa-tasks"></i></span>
+      Nhiệm vụ
+    </a>
+    <a class="nav-link" data-section="taichinh">
+      <span class="nav-icon" style="background:linear-gradient(135deg,#10b981,#34d399);color:#fff"><i class="fas fa-coins"></i></span>
+      Tài chính
+    </a>
+    <a class="nav-link" data-section="muctieu" id="nav-muctieu">
+      <span class="nav-icon"><i class="fas fa-bullseye"></i></span>
+      Mục tiêu tháng
+    </a>
+    <a class="nav-link" data-section="gantt">
+      <span class="nav-icon"><i class="fas fa-stream"></i></span>
+      Sơ đồ Gantt
+    </a>
+    <a class="nav-link" data-section="report" id="nav-report">
+      <span class="nav-icon"><i class="fas fa-chart-line"></i></span>
+      Báo cáo
+    </a>
+    <a class="nav-link" data-section="thongke" id="nav-thongke">
+      <span class="nav-icon" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4);color:#fff"><i class="fas fa-chart-pie"></i></span>
+      Thống kê
+    </a>
+    <a class="nav-link" data-section="ioc" id="nav-ioc">
+      <span class="nav-icon" style="background:linear-gradient(135deg,#ef4444,#f97316);color:#fff"><i class="fas fa-satellite-dish"></i></span>
+      IOC NQ57
+    </a>
+    <a class="nav-link" data-section="donvi" id="nav-donvi">
+      <span class="nav-icon"><i class="fas fa-building"></i></span>
+      Đơn vị
+    </a>
+    <a class="nav-link" data-section="nhansu" id="nav-nhansu">
+      <span class="nav-icon"><i class="fas fa-users"></i></span>
+      Nhân sự
+    </a>
+  </nav>
+
+  <!-- Bottom -->
+  <div class="sidebar-bottom">
+    <button onclick="toggleDarkMode()"
+      style="width:100%;display:flex;align-items:center;gap:8px;padding:8px 10px;
+             background:var(--bg-hover);border-radius:10px;font-size:12px;
+             border:none;cursor:pointer;color:var(--text-primary);margin-bottom:6px">
+      <i class="fas fa-moon" id="darkmode-icon"></i>
+      <span id="darkmode-label">Chế độ tối</span>
+    </button>
+    <a href="https://zalo.me/0815815288" target="_blank"
+      style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f0f4ff;
+             border-radius:10px;font-size:12px;color:#3b82f6;text-decoration:none">
+      <i class="fas fa-headset"></i>Hỗ trợ kỹ thuật
+    </a>
+  </div>
+
+</aside>
+
+<!-- -
+     MAIN CONTENT
+- -->
+<div id="main-content">
+
+  <!-- HEADER -->
+  <header id="top-header">
+    <div class="header-inner">
+      <button id="hamburger" class="icon-btn" onclick="toggleSidebar()" title="Menu"><i class="fas fa-bars"></i></button>
+      <div class="header-title">
+        <h2 id="page-title">Tổng Quan</h2>
+        <p id="page-sub">Hệ thống quản lý NQ57 Demo</p>
+      </div>
+      <div class="header-search">
+        <i class="fas fa-search"></i>
+        <input type="text" id="search-input" placeholder="Tìm kiếm nhiệm vụ, dự án...">
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" onclick="refreshData()" title="Làm mới (Ctrl+R)"><i class="fas fa-sync-alt"></i></button>
+        <button class="icon-btn" style="background:#fffbeb;color:#d97706;position:relative" onclick="openReminderPanel()" title="Nhắc việc">
+          <i class="fas fa-bell"></i>
+          <span id="reminder-count-badge" class="badge-dot" style="display:none">0</span>
+        </button>
+        <div class="dropdown-wrap">
+          <button class="btn btn-primary btn-sm" onclick="toggleDropdown('create-dd')">
+            <i class="fas fa-plus"></i><span class="hidden-xs">Tạo mới</span><i class="fas fa-chevron-down" style="font-size:9px;margin-left:2px"></i>
+          </button>
+          <div class="dropdown-menu" id="create-dd">
+            <button class="dropdown-item" id="quick-vanban" onclick="quickCreateVanBan()" style="display:none">
+              <i class="fas fa-file-alt" style="color:#8b5cf6"></i>Văn bản mới
+            </button>
+            <button class="dropdown-item" id="quick-duan" onclick="quickCreateDuAn()" style="display:none">
+              <i class="fas fa-folder-plus" style="color:#3b82f6"></i>Dự án mới
+            </button>
+            <button class="dropdown-item" onclick="quickCreateNhiemVu()">
+              <i class="fas fa-plus-circle" style="color:#10b981"></i>Nhiệm vụ mới
+            </button>
+            <button class="dropdown-item" onclick="openQuickFutureTask()">
+              <i class="fas fa-calendar-plus" style="color:#f59e0b"></i>Việc tuần tới
+            </button>
+            <div style="height:1px;background:var(--border);margin:4px 0"></div>
+            <button class="dropdown-item" id="quick-donvi" onclick="quickCreateDonVi()" style="display:none">
+              <i class="fas fa-plus-square" style="color:#ef4444"></i>Đơn vị mới
+            </button>
+            <button class="dropdown-item" id="quick-nhansu" onclick="quickCreateNhanSu()" style="display:none">
+              <i class="fas fa-user-plus" style="color:#f97316"></i>Nhân sự mới
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENT AREA -->
+  <div class="content-area">
+
+    <!-- - TỔNG QUAN - -->
+    <div id="overview-section" class="section active">
+      <!-- STAT ROW COMPACT - 1 hàng ngang -->
+      <div class="kpi-row">
+
+        <div class="kpi-card" onclick="navigateTo('vanban')" style="--kpi-color:#8b5cf6;--kpi-bg:linear-gradient(135deg,#8b5cf6,#ec4899)">
+          <div class="kpi-left">
+            <div class="kpi-icon"><i class="fas fa-file-alt"></i></div>
+          </div>
+          <div class="kpi-right">
+            <div class="kpi-num" id="s-vanban">-</div>
+            <div class="kpi-lbl">Văn bản</div>
+            <div class="kpi-sub"><i class="fas fa-folder"></i> DA: <strong id="s-duan">-</strong></div>
+          </div>
+        </div>
+
+        <div class="kpi-card" onclick="navigateTo('duan')" style="--kpi-color:#6366f1;--kpi-bg:linear-gradient(135deg,#6366f1,#8b5cf6)">
+          <div class="kpi-left">
+            <div class="kpi-icon"><i class="fas fa-folder-open"></i></div>
+          </div>
+          <div class="kpi-right">
+            <div class="kpi-num" id="s-duan2">-</div>
+            <div class="kpi-lbl">Dự án</div>
+            <div class="kpi-sub">
+              <span style="color:#10b981"><i class="fas fa-check-circle"></i> <strong id="s-da-hoan-thanh">-</strong></span>
+              <span style="color:#ef4444;margin-left:6px"><i class="fas fa-exclamation-triangle"></i> <strong id="s-da-qua-han">-</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="kpi-card" onclick="navigateTo('nhiemvu')" style="--kpi-color:#3b82f6;--kpi-bg:linear-gradient(135deg,#3b82f6,#6366f1)">
+          <div class="kpi-left">
+            <div class="kpi-icon"><i class="fas fa-tasks"></i></div>
+          </div>
+          <div class="kpi-right">
+            <div class="kpi-num" id="s-nhiemvu">-</div>
+            <div class="kpi-lbl">Nhiệm vụ</div>
+            <div class="kpi-sub"><i class="fas fa-check-circle" style="color:#10b981"></i> HT: <strong id="s-hoanThanh">-</strong></div>
+          </div>
+        </div>
+
+        <div class="kpi-card" onclick="filterOverdue()" style="--kpi-color:#ef4444;--kpi-bg:linear-gradient(135deg,#ef4444,#dc2626)">
+          <div class="kpi-left">
+            <div class="kpi-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          </div>
+          <div class="kpi-right">
+            <div class="kpi-num" id="s-quaHan">-</div>
+            <div class="kpi-lbl">Quá hạn</div>
+            <div class="kpi-sub"><i class="fas fa-percentage"></i> <strong id="s-quaHanRate">-</strong></div>
+          </div>
+        </div>
+
+        <div class="kpi-card" onclick="navigateTo('taichinh')" style="--kpi-color:#10b981;--kpi-bg:linear-gradient(135deg,#10b981,#059669)">
+          <div class="kpi-left">
+            <div class="kpi-icon"><i class="fas fa-coins"></i></div>
+          </div>
+          <div class="kpi-right">
+            <div class="kpi-num" id="s-giaiNgan">-</div>
+            <div class="kpi-lbl">Giải ngân</div>
+            <div class="kpi-sub"><i class="fas fa-percent"></i> <strong id="s-tyLeGN">-</strong></div>
+          </div>
+        </div>
+
+        <div class="kpi-card" onclick="openReminderPanel()" style="--kpi-color:#f59e0b;--kpi-bg:linear-gradient(135deg,#f59e0b,#f97316)">
+          <div class="kpi-left">
+            <div class="kpi-icon"><i class="fas fa-bell"></i></div>
+          </div>
+          <div class="kpi-right">
+            <div class="kpi-num" id="s-canhBao">-</div>
+            <div class="kpi-lbl">Nhắc việc</div>
+            <div class="kpi-sub"><i class="fas fa-hourglass-half"></i> Sắp đến hạn</div>
+          </div>
+        </div>
+
+      </div><!-- /kpi-row -->
+
+      <div class="charts-row">
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-chart-pie" style="color:#8b5cf6"></i>Lĩnh vực NQ57</div>
+          <div style="position:relative;height:220px"><canvas id="linhVucChart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-chart-bar" style="color:#3b82f6"></i>Trạng thái nhiệm vụ</div>
+          <div style="position:relative;height:220px"><canvas id="trangThaiChart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-chart-bar" style="color:#10b981"></i>NV theo đơn vị</div>
+          <div style="position:relative;height:220px"><canvas id="donViChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="card-title" style="margin:0"><i class="fas fa-clock" style="color:#f59e0b"></i>Nhiệm vụ gần đây</div>
+          <button onclick="navigateTo('nhiemvu')" class="btn btn-outline btn-sm"><i class="fas fa-list"></i>Xem tất cả</button>
+        </div>
+        <div id="recent-tasks-list"></div>
+      </div>
+    </div>
+
+    <!-- - VĂN BẢN - -->
+    <div id="vanban-section" class="section">
+      <div class="section-toolbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+          <input type="text" id="vb-search" class="form-input" placeholder="Tìm văn bản..." style="max-width:200px" oninput="renderVanBan()">
+          <select id="vb-cap" class="form-select" onchange="renderVanBan()">
+            <option value="">Tất cả cấp</option>
+            <option value="TW">Trung ương</option>
+            <option value="Tinh">Tỉnh</option>
+            <option value="Xa">Xã</option>
+          </select>
+          <select id="vb-loai" class="form-select" onchange="renderVanBan()">
+            <option value="">Tất cả loại</option>
+            <option value="Nghi quyet">Nghị quyết</option>
+            <option value="Chi thi">Chỉ thị</option>
+            <option value="Ke hoach">Kế hoạch</option>
+            <option value="Quyet dinh">Quyết định</option>
+            <option value="Cong van">Công văn</option>
+            <option value="Thong bao KL">Thông báo KL</option>
+            <option value="Bao cao">Báo cáo</option>
+            <option value="Giay moi">Giấy mời</option>
+          </select>
+        </div>
+        <button id="add-vanban-btn" class="btn btn-primary btn-sm" onclick="openModal('vanban')" style="display:none"><i class="fas fa-plus"></i>Thêm văn bản</button>
+      </div>
+      <div id="vanban-list" class="tree-list"></div>
+    </div>
+
+    <!-- - DỰ ÁN - -->
+    <div id="duan-section" class="section">
+      <div class="section-toolbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+          <input type="text" id="da-search" class="form-input" placeholder="Tìm dự án..." style="max-width:200px" oninput="renderDuAn()">
+          <select id="da-vb-filter" class="form-select" onchange="renderDuAn()"><option value="">Tất cả văn bản</option></select>
+          <select id="da-status" class="form-select" onchange="renderDuAn()">
+            <option value="">Tất cả trạng thái</option>
+            <option value="Dang thuc hien">Đang TH</option><option value="Hoan thanh">Hoàn thành</option>
+            <option value="Chua bat dau">Chưa BĐ</option><option value="Tam dung">Tạm dừng</option>
+          </select>
+        </div>
+        <button id="add-duan-btn" class="btn btn-primary btn-sm" onclick="openModal('duan')" style="display:none"><i class="fas fa-plus"></i>Thêm dự án</button>
+      </div>
+      <div id="duan-list" class="tree-list"></div>
+    </div>
+
+    <!-- - NHIỆM VỤ - -->
+    <div id="nhiemvu-section" class="section">
+      <div class="section-toolbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+          <input type="text" id="nv-search" class="form-input" placeholder="Tìm nhiệm vụ..." style="max-width:180px" oninput="renderNhiemVu()">
+          <select id="nv-vb-filter" class="form-select" onchange="renderNhiemVu()"><option value="">Tất cả văn bản</option></select>
+          <select id="nv-da-filter" class="form-select" onchange="renderNhiemVu()"><option value="">Tất cả dự án</option></select>
+          <select id="nv-status" class="form-select" onchange="renderNhiemVu()">
+            <option value="">Tất cả TT</option>
+            <option value="Dang thuc hien">Đang TH</option><option value="Hoan thanh">Hoàn thành</option>
+            <option value="Chua bat dau">Chưa BĐ</option><option value="Qua han">Quá hạn</option>
+          </select>
+          <select id="nv-linh-vuc" class="form-select" onchange="renderNhiemVu()"><option value="">Tất cả lĩnh vực</option></select>
+          <select id="nv-canh-bao" class="form-select" onchange="renderNhiemVu()">
+            <option value="">Tất cả CB</option>
+            <option value="DO">  Đỏ</option><option value="VANG">  Vàng</option><option value="XANH">  Xanh</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="exportNhiemVuCSV()" title="Xuất CSV"><i class="fas fa-file-csv"></i></button>
+          <button class="btn btn-primary btn-sm" onclick="openModal('nhiemvu')"><i class="fas fa-plus"></i>Thêm NV</button>
+        </div>
+      </div>
+      <div id="nhiemvu-list" class="task-list-container"></div>
+    </div>
+
+    <!-- - TÀI CHÍNH - -->
+    <div id="taichinh-section" class="section">
+      <div class="card">
+        <div class="card-title"><i class="fas fa-coins" style="color:#10b981"></i>Tổng quan tài chính</div>
+        <div id="taichinh-stats" class="tc-stats-grid"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-table" style="color:#3b82f6"></i>Chi tiết theo dự án</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Dự án</th><th>Văn bản</th><th>Đơn vị CT</th>
+              <th style="text-align:right">Dự toán</th><th style="text-align:right">Giải ngân</th>
+              <th>Tỷ lệ</th><th>Trạng thái</th>
+            </tr></thead>
+            <tbody id="taichinh-tbody">
+              <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar" style="color:#f59e0b"></i>Biểu đồ giải ngân theo dự án</div>
+        <div style="position:relative;height:280px"><canvas id="giaiNganChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- - MỤC TIÊU THÁNG - -->
+    <div id="muctieu-section" class="section">
+      <div class="section-toolbar">
+        <select id="mt-nhom" class="form-select" style="max-width:200px" onchange="renderMucTieu()">
+          <option value="">Tất cả nhóm lĩnh vực</option>
+        </select>
+        <button id="add-muctieu-btn" class="btn btn-primary btn-sm" onclick="openModal('muctieu')"><i class="fas fa-plus"></i>Thêm mục tiêu</button>
+      </div>
+      <div class="card" style="padding:0;overflow:auto">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+          <div class="card-title" style="margin:0">
+            <i class="fas fa-table" style="color:#8b5cf6"></i>Bảng tiến độ 12 tháng
+            <span style="font-size:11px;color:var(--text-muted);font-weight:400;margin-left:8px">(Nhấn ô tháng để cập nhật nhanh)</span>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table mt-table" style="min-width:1000px">
+            <thead><tr id="mt-thead"></tr></thead>
+            <tbody id="muctieu-tbody">
+              <tr><td colspan="20" style="text-align:center;padding:24px;color:var(--text-muted)">Đang tải...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-line" style="color:#10b981"></i>Xu hướng lũy kế năm</div>
+        <div style="position:relative;height:260px"><canvas id="mucTieuChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- - GANTT - -->
+    <div id="gantt-section" class="section">
+      <div class="section-toolbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+          <select id="gantt-view" class="form-select" onchange="renderGantt()">
+            <option value="all">Tất cả cấp (VB   DA   NV)</option>
+            <option value="vanban">Chỉ Văn bản</option>
+            <option value="duan">Dự án + Văn bản</option>
+            <option value="nhiemvu">Nhiệm vụ + Dự án</option>
+          </select>
+          <select id="gantt-filter-vb" class="form-select" onchange="renderGantt()"><option value="">Tất cả văn bản</option></select>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="ganttScrollToday()"><i class="fas fa-crosshairs"></i>Hôm nay</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div id="gantt-container" style="overflow:auto;max-height:600px"></div>
+      </div>
+    </div>
+
+    <!-- - BÁO CÁO - -->
+    <div id="report-section" class="section">
+      <div class="card">
+        <div class="card-title"><i class="fas fa-file-word" style="color:#2563eb"></i>Xuất báo cáo tuần (Google Doc)</div>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.6">
+          Tự động tổng hợp 6 phần: Văn bản chỉ đạo   Kết quả nhiệm vụ (nhóm lĩnh vực)   Khó khăn/Kiến nghị   Tài chính   Nhiệm vụ tuần tới   Ký tên chuẩn hành chính xã Bắc Hà.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="generateReport()" id="report-btn"><i class="fas fa-file-word"></i>Tạo báo cáo tuần</button>
+          <button class="btn btn-outline btn-sm" onclick="updateCanhBao()"><i class="fas fa-sync"></i>Cập nhật cảnh báo</button>
+          <button class="btn btn-outline btn-sm" onclick="exportNhiemVuCSV()"><i class="fas fa-file-csv"></i>Xuất CSV</button>
+        </div>
+        <div id="report-result" style="margin-top:14px;display:none"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-bar" style="color:#10b981"></i>Thống kê nhanh theo kỳ</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <select id="rpt-period" class="form-select" style="max-width:160px">
+            <option value="week">Tuần này</option>
+            <option value="month">Tháng này</option>
+          </select>
+          <button class="btn btn-outline btn-sm" onclick="loadReportData()"><i class="fas fa-sync"></i>Tải số liệu</button>
+        </div>
+        <div id="report-stats"><p style="font-size:13px;color:var(--text-muted)">Nhấn "Tải số liệu" để xem thống kê.</p></div>
+      </div>
+      <!-- Admin tools - hiện khi admin -->
+      <div class="card" id="admin-tools-card" style="display:none">
+        <div class="card-title"><i class="fas fa-cog" style="color:#6366f1"></i>Công cụ Admin</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="setupSheets()"><i class="fas fa-database"></i>Thiết lập Sheet Demo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- - THỐNG KÊ PHÒNG BAN - -->
+    <div id="thongke-section" class="section">
+      <!-- Toolbar bộ lọc -->
+      <div class="section-toolbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+          <select id="tk-donvi" class="form-select" style="max-width:200px" onchange="renderThongKe()">
+            <option value="">Tất cả phòng ban</option>
+          </select>
+          <select id="tk-period" class="form-select" style="max-width:160px" onchange="renderThongKe()">
+            <option value="all">Tất cả thời gian</option>
+            <option value="month">Tháng này</option>
+            <option value="quarter">Quý này</option>
+            <option value="year">Năm nay</option>
+          </select>
+          <select id="tk-loai" class="form-select" style="max-width:160px" onchange="renderThongKe()">
+            <option value="all">Tất cả loại</option>
+            <option value="duan">Theo dự án</option>
+            <option value="nhiemvu">Theo nhiệm vụ</option>
+            <option value="taichinh">Theo tài chính</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-outline btn-sm" onclick="renderThongKe()">
+            <i class="fas fa-sync"></i>Cập nhật
+          </button>
+          <button class="btn btn-success btn-sm" onclick="exportThongKeCSV()">
+            <i class="fas fa-file-csv"></i>Xuất CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Tổng quan nhanh -->
+      <div id="tk-stats-row" class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"></div>
+
+      <!-- Bảng thống kê theo đơn vị -->
+      <div class="card">
+        <div class="card-title"><i class="fas fa-table" style="color:#0ea5e9"></i>Bảng thống kê theo phòng ban</div>
+        <div class="table-wrap">
+          <table class="data-table" id="tk-table">
+            <thead>
+              <tr>
+                <th>Phòng ban</th>
+                <th style="text-align:center">Dự án</th>
+                <th style="text-align:center">Tổng NV</th>
+                <th style="text-align:center">Hoàn thành</th>
+                <th style="text-align:center">Đang TH</th>
+                <th style="text-align:center">Quá hạn</th>
+                <th style="text-align:center">Tỷ lệ HT</th>
+                <th style="text-align:right">Dự toán</th>
+                <th style="text-align:right">Giải ngân</th>
+                <th style="text-align:center">Tiến độ TB</th>
+              </tr>
+            </thead>
+            <tbody id="tk-tbody">
+              <tr><td colspan="10" style="text-align:center;padding:30px;color:var(--text-muted)">
+                <i class="fas fa-chart-pie" style="font-size:28px;display:block;margin-bottom:8px;opacity:.3"></i>
+                Chọn bộ lọc và nhấn Cập nhật để xem thống kê
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Charts 2 cột -->
+      <div class="charts-row">
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-chart-bar" style="color:#0ea5e9"></i>Nhiệm vụ theo phòng ban</div>
+          <div style="position:relative;height:260px"><canvas id="tk-nv-chart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-chart-doughnut" style="color:#8b5cf6"></i>Tỷ lệ hoàn thành</div>
+          <div style="position:relative;height:260px"><canvas id="tk-ht-chart"></canvas></div>
+        </div>
+      </div>
+      <div class="charts-row">
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-coins" style="color:#10b981"></i>Giải ngân theo phòng ban</div>
+          <div style="position:relative;height:260px"><canvas id="tk-kp-chart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-tasks" style="color:#f59e0b"></i>Cảnh báo theo phòng ban</div>
+          <div style="position:relative;height:260px"><canvas id="tk-cb-chart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Chi tiết khi click vào phòng ban -->
+      <div id="tk-detail-card" class="card" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div class="card-title" style="margin:0"><i class="fas fa-building" style="color:#6366f1"></i><span id="tk-detail-title">Chi tiết phòng ban</span></div>
+          <button onclick="el('tk-detail-card').style.display='none'" class="btn btn-outline btn-sm btn-icon"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="tk-detail-body"></div>
+      </div>
+    </div>
+
+    <!-- - IOC - -->
+    <div id="ioc-section" class="section">
+      <div class="ioc-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:48px;height:48px;background:linear-gradient(135deg,#ef4444,#f97316);border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas fa-satellite-dish" style="color:#fff;font-size:20px"></i>
+          </div>
+          <div>
+            <h2 style="font-size:18px;font-weight:800;color:#fff;margin:0">IOC NQ57</h2>
+            <p style="font-size:12px;color:rgba(255,255,255,.75)">Trung tâm điều hành tổng hợp</p>
+          </div>
+        </div>
+        <button onclick="refreshIOC()" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3)">
+          <i class="fas fa-sync"></i>Làm mới
+        </button>
+      </div>
+      <div class="ioc-cards" id="ioc-cards"></div>
+      <div class="charts-row">
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-traffic-light" style="color:#ef4444"></i>Cảnh báo</div>
+          <div style="position:relative;height:200px"><canvas id="iocCanhBaoChart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-chart-pie" style="color:#8b5cf6"></i>Lĩnh vực</div>
+          <div style="position:relative;height:200px"><canvas id="iocLinhVucChart"></canvas></div>
+        </div>
+        <div class="card chart-card">
+          <div class="card-title"><i class="fas fa-chart-bar" style="color:#f59e0b"></i>Tiến độ đơn vị (%)</div>
+          <div style="position:relative;height:200px"><canvas id="iocDonViChart"></canvas></div>
+        </div>
+      </div>
+      <div class="alert-row">
+        <div class="card alert-card">
+          <div class="card-title" style="color:#dc2626"><i class="fas fa-exclamation-circle"></i>  Cảnh báo ĐỎ</div>
+          <div id="ioc-do-list"></div>
+        </div>
+        <div class="card alert-card">
+          <div class="card-title" style="color:#d97706"><i class="fas fa-exclamation-triangle"></i>  Cảnh báo VÀNG</div>
+          <div id="ioc-vang-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- - ĐƠN VỊ - -->
+    <div id="donvi-section" class="section">
+      <div class="section-toolbar">
+        <input type="text" id="dv-search" class="form-input" placeholder="Tìm đơn vị..." style="max-width:240px" oninput="renderDonVi()">
+        <button id="add-donvi-btn" class="btn btn-primary btn-sm" onclick="openModal('donvi')" style="display:none"><i class="fas fa-plus"></i>Thêm đơn vị</button>
+      </div>
+      <div id="donvi-list" class="task-list-container"></div>
+    </div>
+
+    <!-- - NHÂN SỰ - -->
+    <div id="nhansu-section" class="section">
+      <div class="section-toolbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;flex:1">
+          <input type="text" id="ns-search" class="form-input" placeholder="Tìm nhân sự..." style="max-width:200px" oninput="renderNhanSu()">
+          <select id="ns-dv-filter" class="form-select" onchange="renderNhanSu()"><option value="">Tất cả đơn vị</option></select>
+          <select id="ns-role-filter" class="form-select" onchange="renderNhanSu()">
+            <option value="">Tất cả quyền</option>
+            <option value="Admin">Admin</option><option value="Quan Ly">Quản lý</option><option value="Nhan Vien">Nhân viên</option>
+          </select>
+        </div>
+        <button id="add-nhansu-btn" class="btn btn-primary btn-sm" onclick="openModal('nhansu')" style="display:none"><i class="fas fa-user-plus"></i>Thêm nhân sự</button>
+      </div>
+      <div id="nhansu-list" class="task-list-container"></div>
+    </div>
+
+  </div><!-- /content-area -->
+</div><!-- /main-content -->
+
+
+<!-- -
+     MODAL ĐĂNG NHẬP - Redesigned
+- -->
+<div id="login-modal" class="modal-overlay active" style="z-index:9999;background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f2044 100%)">
+  <div style="width:100%;max-width:420px;padding:16px">
+
+    <!-- Card -->
+    <div style="background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.4)">
+
+      <!-- Header gradient -->
+      <div style="background:linear-gradient(135deg,#1d4ed8,#7c3aed,#be185d);padding:32px 28px 28px;text-align:center;position:relative">
+        <!-- Decorative circles -->
+        <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:rgba(255,255,255,.06);border-radius:50%"></div>
+        <div style="position:absolute;bottom:-30px;left:-15px;width:90px;height:90px;background:rgba(255,255,255,.05);border-radius:50%"></div>
+        <!-- Logo -->
+        <div style="width:64px;height:64px;background:rgba(255,255,255,.18);border-radius:18px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;backdrop-filter:blur(8px);border:2px solid rgba(255,255,255,.25)">
+          <i class="fas fa-rocket" style="color:#fff;font-size:26px"></i>
+        </div>
+        <h1 style="font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;letter-spacing:.5px">BCĐ NQ57</h1>
+        <p style="font-size:13px;color:rgba(255,255,255,.75);font-weight:400">Hệ thống quản lý Nghị quyết 57</p>
+        <!-- Tagline chips -->
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+          <span style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.9);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;backdrop-filter:blur(6px)"><i class="fas fa-shield-alt" style="margin-right:4px"></i>Bảo mật</span>
+          <span style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.9);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;backdrop-filter:blur(6px)"><i class="fas fa-tachometer-alt" style="margin-right:4px"></i>Realtime</span>
+          <span style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.9);padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;backdrop-filter:blur(6px)"><i class="fas fa-users" style="margin-right:4px"></i>Đa phân quyền</span>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div style="padding:28px 28px 24px">
+        <p style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:20px">Đăng nhập tài khoản</p>
+
+        <!-- Email -->
+        <div style="margin-bottom:14px">
+          <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:6px">
+            <i class="fas fa-envelope" style="color:#6366f1;margin-right:5px"></i>Email công vụ
+          </label>
+          <div style="position:relative">
+            <input type="email" id="login-email" autocomplete="email"
+              placeholder="ten@donvi.gov.vn"
+              style="width:100%;padding:10px 14px 10px 40px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;outline:none;transition:.15s;color:#0f172a;background:#f8fafc"
+              onfocus="this.style.borderColor='#6366f1';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)'"
+              onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';this.style.boxShadow='none'"
+              onkeydown="if(event.key==='Enter'){document.getElementById('login-password').focus();}">
+            <i class="fas fa-envelope" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none"></i>
+          </div>
+        </div>
+
+        <!-- Mật khẩu -->
+        <div style="margin-bottom:6px">
+          <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:6px">
+            <i class="fas fa-lock" style="color:#6366f1;margin-right:5px"></i>Mật khẩu
+          </label>
+          <div style="position:relative">
+            <input type="password" id="login-password" autocomplete="current-password"
+              placeholder="Nhập mật khẩu"
+              style="width:100%;padding:10px 44px 10px 40px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:13px;outline:none;transition:.15s;color:#0f172a;background:#f8fafc"
+              onfocus="this.style.borderColor='#6366f1';this.style.background='#fff';this.style.boxShadow='0 0 0 3px rgba(99,102,241,.12)'"
+              onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';this.style.boxShadow='none'"
+              onkeydown="if(event.key==='Enter'){doLogin();}">
+            <i class="fas fa-lock" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:13px;pointer-events:none"></i>
+            <button type="button" id="toggle-pw" onclick="togglePwVisibility()"
+              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#94a3b8;font-size:13px;padding:0">
+              <i class="fas fa-eye" id="pw-eye-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="login-error"
+          style="display:none;margin:10px 0;padding:9px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:12px;font-weight:500">
+          <i class="fas fa-exclamation-circle" style="margin-right:5px"></i>
+          <span id="login-error-txt"></span>
+        </div>
+
+        <!-- Button -->
+        <button id="login-submit" onclick="doLogin()"
+          style="width:100%;padding:11px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.3px"
+          onmouseover="this.style.filter='brightness(1.1)';this.style.transform='translateY(-1px)'"
+          onmouseout="this.style.filter='none';this.style.transform='none'">
+          <i class="fas fa-sign-in-alt"></i>Đăng nhập
+        </button>
+
+        <!-- Footer info -->
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:6px;height:6px;background:#10b981;border-radius:50%;animation:pulse-dot 2s infinite"></div>
+            <span style="font-size:11px;color:#64748b">Hệ thống hoạt động bình thường</span>
+          </div>
+          <span style="font-size:11px;color:#94a3b8"><i class="fas fa-clock" style="margin-right:3px"></i>Phiên 15 ngày</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer text -->
+    <p style="text-align:center;margin-top:16px;font-size:11px;color:rgba(255,255,255,.4)">
+      UBND xã Bắc Hà &nbsp; &nbsp; Hệ thống NQ57 Demo
+    </p>
+  </div>
+</div>
+
+<style>
+@keyframes pulse-dot {
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.5;transform:scale(1.3)}
+}
+</style>
+
+<!-- -
+     MODAL CHUNG
+- -->
+<div id="modal-overlay" class="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal-box" id="modal-box">
+    <div class="modal-head">
+      <h3 id="modal-title">Modal</h3>
+      <button onclick="closeModal()" class="btn btn-outline btn-sm btn-icon" title="Đóng (Esc)">
+        <i class="fas fa-times" style="font-size:12px"></i>
+      </button>
+    </div>
+    <div id="modal-body" class="modal-body"></div>
+    <div class="modal-foot">
+      <button onclick="closeModal()" class="btn btn-outline">Hủy</button>
+      <button onclick="submitModal()" class="btn btn-primary" id="modal-submit">
+        <i class="fas fa-save"></i>Lưu
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- -
+     MODAL CHI TIẾT
+- -->
+<div id="detail-overlay" class="modal-overlay" onclick="handleDetailOverlay(event)">
+  <div class="modal-box" id="detail-box" style="max-width:780px;max-height:90vh;overflow-y:auto">
+    <div class="modal-head" style="position:sticky;top:0;z-index:1;background:var(--bg-card)">
+      <h3 id="detail-title">Chi tiết</h3>
+      <button onclick="closeDetail()" class="btn btn-outline btn-sm btn-icon" title="Đóng (Esc)">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div id="detail-body" class="modal-body"></div>
+  </div>
+</div>
+
+<!-- -
+     REMINDER PANEL
+- -->
+<div id="rp-overlay" class="rp-overlay" onclick="closeReminderPanel()"></div>
+<div id="reminder-panel" class="reminder-panel">
+  <div class="rp-head">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <i class="fas fa-bell" style="font-size:20px"></i>
+        <div>
+          <p style="font-weight:700;font-size:15px;line-height:1.2">Nhắc việc</p>
+          <p style="font-size:11px;opacity:.8">Sắp đến hạn &amp; quá hạn</p>
+        </div>
+      </div>
+      <button onclick="closeReminderPanel()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);border:none;color:#fff;cursor:pointer;font-size:14px">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <span id="rp-cnt-overdue" style="font-size:11px;background:#ef4444;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700">0 quá hạn</span>
+      <span id="rp-cnt-today"   style="font-size:11px;background:#f97316;color:#fff;padding:2px 10px;border-radius:20px;font-weight:700">0 hôm nay</span>
+      <span id="rp-cnt-soon"    style="font-size:11px;background:#fef9c3;color:#92400e;padding:2px 10px;border-radius:20px;font-weight:700">0 sắp đến</span>
+    </div>
+  </div>
+  <div class="rp-tabs">
+    <div class="rp-tab on" onclick="setRpTab('all',this)">Tất cả</div>
+    <div class="rp-tab"    onclick="setRpTab('QUA_HAN',this)">  Quá hạn</div>
+    <div class="rp-tab"    onclick="setRpTab('HOM_NAY',this)">  Hôm nay</div>
+    <div class="rp-tab"    onclick="setRpTab('SAP_HAN',this)">  Sắp đến</div>
+  </div>
+  <div id="rp-body" class="rp-body">
+    <div style="text-align:center;padding:30px;color:var(--text-muted)">
+      <i class="fas fa-spinner fa-spin" style="font-size:20px;display:block;margin-bottom:8px"></i>Đang tải...
+    </div>
+  </div>
+  <div class="rp-foot">
+    <button onclick="openReminderConfig()" style="width:100%;padding:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+      <i class="fas fa-cog"></i>Cài đặt nhắc việc tự động
+    </button>
+  </div>
+</div>
+
+<!-- -
+     CONFIG NHẮC VIỆC
+- -->
+<div id="cfg-backdrop" class="cfg-backdrop" onclick="closeCfgOnBackdrop(event)">
+  <div class="cfg-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 style="font-size:16px;font-weight:700;color:var(--text-primary)">
+        <i class="fas fa-cog" style="color:#6366f1;margin-right:6px"></i>Cài đặt nhắc việc
+      </h3>
+      <button onclick="closeCfg()" class="btn btn-outline btn-sm btn-icon"><i class="fas fa-times" style="font-size:12px"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px;background:var(--bg-hover);border-radius:11px;border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;background:#fef2f2;border-radius:9px;display:flex;align-items:center;justify-content:center"><i class="fas fa-envelope" style="color:#ef4444"></i></div>
+          <div>
+            <p style="font-size:13px;font-weight:600">Gmail</p>
+            <p style="font-size:11px;color:var(--text-secondary)">Gửi email khi sắp đến hạn / quá hạn</p>
+          </div>
+        </div>
+        <div class="toggle-track" id="tgl-email" onclick="toggleCfg('email')"></div>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Zalo Webhook URL (tuỳ chọn)</label>
+        <input type="text" id="cfg-zalo" class="form-input" placeholder="https://your-zalo-webhook.com/notify">
+        <p class="form-note">Dùng Zalo OA API hoặc Zapier/Make</p>
+      </div>
+      <div style="padding:12px;background:var(--bg-hover);border-radius:11px;border:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <p style="font-size:13px;font-weight:600">Trigger tự động <span style="font-size:11px;font-weight:400;color:var(--text-secondary)">(7:00 sáng mỗi ngày)</span></p>
+            <p id="cfg-trigger-txt" style="font-size:11px;color:var(--text-secondary)">Đang kiểm tra...</p>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="setupTrigger()" class="btn btn-success btn-sm"><i class="fas fa-play"></i>Bật</button>
+            <button onclick="removeTrigger()" class="btn btn-outline btn-sm"><i class="fas fa-stop"></i>Tắt</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:16px;gap:8px;flex-wrap:wrap">
+      <button onclick="testReminders()" class="btn btn-sm" style="background:#fef3c7;color:#d97706;border:1px solid #fde68a">
+        <i class="fas fa-paper-plane"></i>Gửi thử ngay
+      </button>
+      <div style="display:flex;gap:8px">
+        <button onclick="closeCfg()" class="btn btn-outline btn-sm">Hủy</button>
+        <button onclick="saveReminderConfig()" class="btn btn-primary btn-sm"><i class="fas fa-save"></i>Lưu</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- -
+     TOAST & LOADING
+- -->
+<div id="toast-container"></div>
+
+<div id="loading-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99998;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--bg-card);border-radius:16px;padding:32px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);min-width:200px">
+    <div class="spinner" style="margin:0 auto 14px"></div>
+    <p id="loading-text" style="font-size:14px;font-weight:600;color:var(--text-primary)">Đang xử lý...</p>
+  </div>
+</div>
+
+<!-- -
+     JAVASCRIPT
+- -->
+<script src="script.js"></script>
+
+
+<style>
+.hidden-xs{display:none}
+@media(min-width:480px){.hidden-xs{display:inline}}
+@media(min-width:1200px){
+  .charts-row{grid-template-columns:repeat(3,1fr)}
+  .stats-grid{grid-template-columns:repeat(5,1fr)}
+}
+</style>
+
+
+
+</body>
+</html>
