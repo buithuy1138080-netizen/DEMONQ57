@@ -1,4 +1,5 @@
-var API_URL = 'https://script.google.com/macros/s/AKfycbwaSdBRhJ0klwe0JoQ3m-L31SBC7DrgOL6Lv3DccxT_WRu5iYDYyPtmQLYrdwtz-fkz/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbyPNxs47XPnwvq2XVt1VTHzHbnauyBohaTTTA8fPSFk_oakk2LNOckyZxfMvVeYOOSpug/exec';
+
 var APP = {
 token   : null,
 user    : null,
@@ -502,30 +503,17 @@ function hideLoading() {
 var ov = el('loading-overlay');
 if (ov) ov.style.display = 'none';
 }
-// ── API base URL — trỏ đến Google Apps Script Web App ──────────
 
+function gs(fn, args, cb) {
+  var formData = new FormData();
+  formData.append('fn', fn);
+  formData.append('args', JSON.stringify(args || []));
   fetch(API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString()
+    body: formData,
+    redirect: 'follow'
   })
   .then(function(res) { return res.json(); })
-  .then(function(r) { cb(r || {}); })
-  .catch(function(e) {
-    console.error('API Error [' + fn + ']:', e);
-    cb({ success: false, error: e.message || String(e) });
-  });
-}
-function gs(fn, args, cb) {
-  fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fn: fn, args: args || [] })
-  })
-  .then(function(res) {
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    return res.json();
-  })
   .then(function(r) { cb(r || {}); })
   .catch(function(e) {
     console.error('API Error [' + fn + ']:', e);
