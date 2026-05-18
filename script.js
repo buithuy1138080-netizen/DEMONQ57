@@ -502,7 +502,7 @@ var ov = el('loading-overlay');
 if (ov) ov.style.display = 'none';
 }
 // ── API base URL — trỏ đến Google Apps Script Web App ──────────
-var API_URL = window.API_URL || 'https://script.google.com/macros/s/AKfycby6MGAUSzx68JljfT92mojZou9jQfbrhTL1Byh8F8ktFOG2_sCB5c71cXjKGLN1nKkr-Q/exec';
+var API_URL = window.API_URL || 'https://script.google.com/macros/s/AKfycbyPNxs47XPnwvq2XVt1VTHzHbnauyBohaTTTA8fPSFk_oakk2LNOckyZxfMvVeYOOSpug/exec';
 
 function gs(fn, args, cb) {
   fetch(API_URL, {
