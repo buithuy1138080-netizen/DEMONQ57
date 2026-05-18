@@ -502,8 +502,23 @@ var ov = el('loading-overlay');
 if (ov) ov.style.display = 'none';
 }
 // ── API base URL — trỏ đến Google Apps Script Web App ──────────
-var API_URL = window.API_URL || 'https://script.google.com/macros/s/AKfycbyPNxs47XPnwvq2XVt1VTHzHbnauyBohaTTTA8fPSFk_oakk2LNOckyZxfMvVeYOOSpug/exec';
+function gs(fn, args, cb) {
+  var params = new URLSearchParams();
+  params.append('fn', fn);
+  params.append('args', JSON.stringify(args || []));
 
+  fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString()
+  })
+  .then(function(res) { return res.json(); })
+  .then(function(r) { cb(r || {}); })
+  .catch(function(e) {
+    console.error('API Error [' + fn + ']:', e);
+    cb({ success: false, error: e.message || String(e) });
+  });
+}
 function gs(fn, args, cb) {
   fetch(API_URL, {
     method: 'POST',
